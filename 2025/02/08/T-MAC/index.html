@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 7.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="摘要在边缘设备上部署大语言模型（LLMs）对于增强设备端智能变得越来越重要。权重量化（weight quantization）对于减少LLMs在设备上的内存占用至关重要。然而，低比特（low-bit）的LLMs在推理过程中需要混合精度矩阵乘法（mpGEMM），其中低精度权重与高精度激活值进行计算。现有系统由于缺乏对mpGEMM的原生支持，不得不先对权重进行反量化（dequantization）以进">
+<meta property="og:type" content="article">
+<meta property="og:title" content="T-MAC：CPURenaissance via Table Lookup for Low-Bit LLM Deployment on Edge">
+<meta property="og:url" content="http://example.com/2025/02/08/T-MAC/index.html">
+<meta property="og:site_name" content="NATSU">
+<meta property="og:description" content="摘要在边缘设备上部署大语言模型（LLMs）对于增强设备端智能变得越来越重要。权重量化（weight quantization）对于减少LLMs在设备上的内存占用至关重要。然而，低比特（low-bit）的LLMs在推理过程中需要混合精度矩阵乘法（mpGEMM），其中低精度权重与高精度激活值进行计算。现有系统由于缺乏对mpGEMM的原生支持，不得不先对权重进行反量化（dequantization）以进">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/figure1.png">
+<meta property="og:image" content="http://example.com/figure.2.png">
+<meta property="og:image" content="http://example.com/alg1.png">
+<meta property="og:image" content="http://example.com/figure.3.png">
+<meta property="og:image" content="http://example.com/figure4.png">
+<meta property="og:image" content="http://example.com/figure5.png">
+<meta property="og:image" content="http://example.com/table1.png">
+<meta property="article:published_time" content="2025-02-08T04:52:18.000Z">
+<meta property="article:modified_time" content="2025-02-08T05:51:18.973Z">
+<meta property="article:author" content="Zhanx">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/figure1.png">
+
+<link rel="canonical" href="http://example.com/2025/02/08/T-MAC/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>T-MAC：CPURenaissance via Table Lookup for Low-Bit LLM Deployment on Edge | NATSU</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">NATSU</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2025/02/08/T-MAC/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Zhanx">
+      <meta itemprop="description" content="真理永存">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="NATSU">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          T-MAC：CPURenaissance via Table Lookup for Low-Bit LLM Deployment on Edge
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2025-02-08 12:52:18 / 修改时间：13:51:18" itemprop="dateCreated datePublished" datetime="2025-02-08T12:52:18+08:00">2025-02-08</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>在边缘设备上部署大语言模型（LLMs）对于增强设备端智能变得越来越重要。权重量化（weight quantization）对于减少LLMs在设备上的内存占用至关重要。然而，低比特（low-bit）的LLMs在推理过程中需要<strong>混合精度矩阵乘法（mpGEMM）</strong>，其中低精度权重与高精度激活值进行计算。现有系统由于缺乏对mpGEMM的原生支持，不得不先对权重进行反量化（dequantization）以进行高精度计算。这种间接方法会导致<strong>显著的推理开销</strong>。</p>
+<p>在本文中，我们提出 T-MAC，一种创新的基于查找表（LUT）的方法，专为在<strong>CPU</strong>上高效推理低比特LLM（即权重量化LLM）而设计。T-MAC无需反量化即可直接支持mpGEMM，同时消除了乘法操作并减少了加法操作的需求。<strong>具体而言，T-MAC 将传统的数据类型驱动的乘法转换为按位（bit-wise）查找表查询，并提供了一种统一且可扩展的mpGEMM解决方案。</strong></p>
+<p>我们的LUT-based（基于查找表）计算核心在权重比特宽度上具备线性可扩展性。在低比特的 Llama 和 BitNet 模型上进行评测，T-MAC 相较于 llama.cpp 实现了 高达 4× 的吞吐量提升，并将能耗降低了 70%。在 BitNet-b1.58-3B 模型上，T-MAC 在 M2-Ultra 处理器上单核生成速率可达 30 tokens&#x2F;s，八核可达 71 tokens&#x2F;s；在 Raspberry Pi 5 等低端设备上，生成速率达到 11 tokens&#x2F;s，远超成人平均阅读速度。</p>
+<p>T-MAC 通过 LUT-based 计算范式，为低比特 LLM 在资源受限的边缘设备上的实际部署铺平了道路，而不会影响计算效率。该系统已开源，地址为：<a target="_blank" rel="noopener" href="https://github.com/microsoft/T-MAC%E3%80%82">https://github.com/microsoft/T-MAC。</a></p>
+<span id="more"></span>
+<h2 id="1-引入"><a href="#1-引入" class="headerlink" title="1 引入"></a>1 引入</h2><p>越来越多的大语言模型（LLMs）正在部署到客户端设备上，如智能手机、台式机和机器人，以提供前所未有的智能服务、实时任务响应以及用户数据保护。典型案例包括 <strong>Phi-3-mini-4bit</strong> 在 iPhone 上的部署 [11]，<strong>Llama-2-7B-4bit</strong> 在 Pixel 5 上的运行，<strong>Llama-2-13B-4bit</strong> 在 Apple M2 Ultra 上的部署 [5]，以及最近推出的 <strong>Microsoft Copilot+PC</strong> [3]，它能够协同运行本地 LLM 与云端 LLM。</p>
+<p>低比特权重量化对于设备端 LLM 推理至关重要，因为硬件资源有限。同时，LLM 的推理质量对精度损失具有较强的鲁棒性。除了 4-bit 之外，<strong>3-bit、2-bit 甚至 1-bit</strong> 的模型也正在不断涌现 [13,18,33,35]。  </p>
+<p>相比之下，<strong>激活量化（activation quantization）</strong> 由于离群值（outliers）的存在，无法跟随这一趋势。因此，计算操作数具有<strong>不对称的精度和比特宽度</strong>，例如 <strong>W4A16（4-bit 权重，16-bit 激活）、W2A16（2-bit 权重，16-bit 激活）或 W1A8（1-bit 权重，8-bit 激活）</strong>。  </p>
+<p>另一方面，目前的通用硬件仍然仅支持<strong>固定比特宽度和对称操作数</strong>，无法处理这些不同的混合精度计算。即便部分研究论文支持<strong>不对称比特宽度操作数</strong>，但其比特宽度仍然是固定的，例如 <strong>W4A8</strong> [22]。因此，计算核心（kernels）不得不<strong>先将低比特权重转换&#x2F;反量化</strong>，以匹配激活的精度，再进行计算。  </p>
+<p>这种转换会带来两个明显的问题：  </p>
+<ol>
+<li><strong>性能问题</strong>：转换的开销会抵消比特缩减所带来的性能提升。我们的评测（见 <strong>图 6</strong>）表明，在大多数情况下，将比特数从 4-bit 降至 1-bit 反而会增加推理延迟。  </li>
+<li><strong>开发问题</strong>：不同混合精度下的数据布局和计算核心需要<strong>逐一设计</strong>。例如，<strong>W3 和 W2 的数据布局，以及交错（interleaving）或混洗（swizzling）方式完全不同</strong>，计算核心必须针对每种布局进行重新设计。</li>
+</ol>
+<p>因此，在设备端部署 LLM 时，一个根本性的问题是：<strong>如何直接且高效地支持低比特权重和高比特激活的混合精度矩阵乘法（mpGEMM，Mixed Precision General Matrix Multiplication）</strong>。  </p>
+<h3 id="本文的目标"><a href="#本文的目标" class="headerlink" title="本文的目标"></a>本文的目标</h3><p>本文旨在设计一种 <strong>mpGEMM 计算核心</strong>，该核心<strong>不依赖于硬件数据类型或量化算法的比特宽度</strong>，以实现比特缩减带来的可扩展加速效果。  </p>
+<h3 id="关键思想"><a href="#关键思想" class="headerlink" title="关键思想"></a>关键思想</h3><p>与传统的以数据类型为中心的计算方式不同，我们利用<strong>标准乘法算法的按位（bit-wise）计算</strong>。其核心思想如下：  </p>
+<ol>
+<li>两个数的乘法可以转换为<strong>一个数与另一个数的每一位相乘</strong>，然后进行移位（shifting）和加法（adding partial products）。  </li>
+<li>mpGEMM 计算（激活矩阵 × 权重矩阵）可以被<strong>分解为一系列（等于权重比特宽度）的子计算</strong>：即<strong>激活矩阵与多个 1-bit 矩阵的 mpGEMM 计算</strong>，最后累加所有部分结果。  </li>
+<li>这种方法能够支持<strong>任意比特宽度组合</strong>的激活和权重计算。</li>
+</ol>
+<h3 id="采用查找表（LUT）实现按位计算"><a href="#采用查找表（LUT）实现按位计算" class="headerlink" title="采用查找表（LUT）实现按位计算"></a>采用查找表（LUT）实现按位计算</h3><p>一种<strong>有前景的方法</strong>是 <strong>利用查找表（Lookup Tables, LUTs）来实现按位计算</strong> [29]。由于 <strong>1-bit 仅能表示两个值（如 1&#x2F;-1）</strong>，因此 <strong>1-bit 向量的位模式（bit patterns）</strong> 是有限的。例如：  </p>
+<ul>
+<li>如果一个 <strong>1-bit 矩阵</strong> 被划分为 <strong>四元素（four-element）向量</strong> 作为一组，则每组可能的位模式仅有 <strong>24 种</strong>（例如 <code>[1,1,1,-1]</code> 和 <code>[1,1,-1,-1]</code>）。  </li>
+<li>计算时，激活值可以<strong>先与所有可能的位模式进行计算，并存入查找表（LUT）</strong>。  </li>
+<li>在执行 mpGEMM 计算时，<strong>权重矩阵的每个位模式直接作为索引查询 LUT</strong>，并将查找到的结果累加，从而完成计算。</li>
+</ul>
+<h3 id="计算优化"><a href="#计算优化" class="headerlink" title="计算优化"></a>计算优化</h3><p>通过这种方法，mpGEMM 计算被简化为 <strong>查找表（LUT）查询 + 加法（addition）</strong> 操作，<strong>完全消除了乘法运算</strong>，从而提高计算效率。</p>
+<p>尽管基于<strong>按位查找表（LUT）的 mpGEMM</strong> 计算能够减少乘法运算，但如何在实际设备上高效实现仍然是一个挑战，因为当前的硬件架构<strong>高度优化</strong>以支持乘法运算。  </p>
+<p>基于 LUT 方法与传统 mpGEMM 计算的关键区别在于：  </p>
+<ul>
+<li>传统 mpGEMM 的两个操作数是 <strong>激活（activation）</strong> 和 <strong>权重（weight）</strong>；  </li>
+<li><strong>LUT 方法</strong> 的两个操作数则是 <strong>查找表（tables）</strong> 和 <strong>索引矩阵（index matrices）</strong>。</li>
+</ul>
+<p>因此，这两种计算方法的数据格式和存储布局对于推理速度至关重要。  </p>
+<h3 id="主要挑战："><a href="#主要挑战：" class="headerlink" title="主要挑战："></a>主要挑战：</h3><ol>
+<li><p><strong>数据访问模式不同</strong>  </p>
+<ul>
+<li>在传统 mpGEMM 计算中，激活和权重数据的访问通常是<strong>连续的（sequential access）</strong>。  </li>
+<li>而在 LUT 方法中，数据访问是<strong>随机的（random access）</strong>，这会影响推理速度。  </li>
+<li>因此，<strong>如何让 LUT 存储在</strong> <strong>片上高速缓存（on-chip memory）</strong> 是影响最终推理性能的关键。</li>
+</ul>
+</li>
+<li><p><strong>片上存储资源有限</strong>  </p>
+<ul>
+<li>传统 mpGEMM 计算只需存储激活和权重，而 LUT 方法需要<strong>存储所有可能的比特模式计算结果</strong>。  </li>
+<li>由于 LUT 需要保存激活向量与所有可能的比特模式计算结果，其存储开销<strong>呈指数级增长</strong>，远大于传统方法。  </li>
+<li>这可能导致片上存储资源（如寄存器、共享内存）不足，从而影响性能。</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h3 id="T-MAC-解决方案"><a href="#T-MAC-解决方案" class="headerlink" title="T-MAC 解决方案"></a><strong>T-MAC 解决方案</strong></h3><p>为了解决上述挑战，本文提出了 <strong>T-MAC mpGEMM 计算核心库</strong>。如 <strong>图 1</strong> 所示，T-MAC 基于<strong>按位计算（bit-wise computation）</strong> 和 <strong>查找表（LUT）</strong> 实现，提供了<strong>统一、可扩展</strong>的混合比特宽度计算方案。<br><img src="/./figure1.png" alt="figure 1"></p>
+<h4 id="1-降低-LUT-随机访问成本"><a href="#1-降低-LUT-随机访问成本" class="headerlink" title="1. 降低 LUT 随机访问成本"></a><strong>1. 降低 LUT 随机访问成本</strong></h4><p>T-MAC 从 <strong>系统（system）</strong> 和 <strong>算法（algorithm）</strong> 角度提出优化策略，使 LUT 可以存储在最快的片上存储器中，并支持<strong>并行查找</strong>：  </p>
+<ul>
+<li><p><strong>系统优化（System-side Optimization）</strong>  </p>
+<ul>
+<li>设计<strong>以 LUT 为中心（LUT-centric）的数据布局</strong>，确保 LUT <strong>驻留在片上存储器（如寄存器）</strong>。  </li>
+<li>通过 <strong>轴重排（axis reordering）</strong> 和 <strong>数据块划分（tiling）</strong>，最大化 LUT 复用率，同时减少占用片上存储的临时计算结果。</li>
+</ul>
+</li>
+<li><p><strong>算法优化（Algorithm-side Optimization）</strong>  </p>
+<ul>
+<li>提出 <strong>表量化（table quantization）</strong> 和 <strong>镜像合并（mirror consolidation）</strong>，以减少 LUT 占用的存储空间。</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h3 id="2-适用于广泛的-CPU-端设备"><a href="#2-适用于广泛的-CPU-端设备" class="headerlink" title="2. 适用于广泛的 CPU 端设备"></a><strong>2. 适用于广泛的 CPU 端设备</strong></h3><p>我们在<strong>边缘设备</strong>的通用 CPU 处理器上实现了 T-MAC，包括 <strong>Raspberry Pi</strong> 这样的低功耗设备。实验结果表明：  </p>
+<ul>
+<li>在 <strong>同一设备</strong> 上，T-MAC 使 CPU 端的 LLM 推理速度可以<strong>媲美甚至超过 GPU</strong>。  </li>
+<li>这主要得益于 T-MAC <strong>消除了数据转换（dequantization）开销</strong>，并且整体计算量因查找表优化<strong>大幅减少</strong>。  </li>
+<li>这使得 <strong>T-MAC 成为首个无需依赖 GPU，即可在 CPU 上高效部署 LLM 的方案</strong>。</li>
+</ul>
+<hr>
+<h3 id="3-T-MAC-性能评测"><a href="#3-T-MAC-性能评测" class="headerlink" title="3. T-MAC 性能评测"></a><strong>3. T-MAC 性能评测</strong></h3><p>我们在<strong>典型的边缘设备</strong>上评估了 T-MAC 的性能，包括：</p>
+<ul>
+<li><strong>Apple M2 Ultra</strong></li>
+<li><strong>Jetson AGX Orin</strong></li>
+<li><strong>Surface Book 3</strong></li>
+<li><strong>Raspberry Pi 5</strong></li>
+</ul>
+<p>T-MAC 的 <strong>mpGEMM 计算核心</strong> 在 CPU 上的加速比达到了：</p>
+<ul>
+<li><strong>最高 6.6 倍加速</strong></li>
+<li><strong>平均 3.6 倍加速</strong>（相比最先进的 CPU 端推理方案 <strong>llama.cpp</strong> [5]）</li>
+</ul>
+<p>在 <strong>端到端（e2e）推理速度</strong> 方面：</p>
+<ul>
+<li>对于 <strong>Llama-2-7B-2bit</strong> 模型，T-MAC <strong>整体推理速度提高了 2.8 倍</strong>。  </li>
+<li>对于 <strong>BitNet-b1.58-3B</strong> 模型，即使在 <strong>Raspberry Pi 5</strong> 上，推理性能仍能达到 <strong>11.1 tokens&#x2F;s</strong>。  </li>
+<li><strong>能耗优化</strong>：相比 llama.cpp，T-MAC <strong>能耗降低 60%-70%</strong>。</li>
+</ul>
+<hr>
+<h3 id="4-本文贡献"><a href="#4-本文贡献" class="headerlink" title="4. 本文贡献"></a><strong>4. 本文贡献</strong></h3><p>本文的主要贡献如下：</p>
+<ul>
+<li><strong>T-MAC 通过按位查找表（bit-wise LUT）计算，将数据类型中心的乘法运算转化为表查找操作，从而提供统一、可扩展的 mpGEMM 计算方案。</strong>  </li>
+<li><strong>我们提出了系统级和算法级优化方案，使查找表驻留在最快的片上存储器中，并支持并行查找，提升计算效率。</strong>  </li>
+<li><strong>我们实现了 T-MAC 计算核心库及端到端 LLM 推理系统，在 CPU 上实现了显著的推理加速和能耗优化。</strong></li>
+</ul>
+<hr>
+<p>T-MAC 的创新点在于：<strong>首次提供了一种在 CPU 端高效部署低比特 LLM 推理的实用方案</strong>，从而推动<strong>边缘设备上大语言模型（LLM）推理的可行性</strong>。</p>
+<h2 id="2-背景和动机"><a href="#2-背景和动机" class="headerlink" title="2 背景和动机"></a>2 背景和动机</h2><h3 id="2-1-LLM-on-Edge"><a href="#2-1-LLM-on-Edge" class="headerlink" title="2.1 LLM on Edge"></a>2.1 LLM on Edge</h3><p>大语言模型（LLMs）的出现彻底改变了自然语言处理领域，为人机交互和个性化助手开启了新的可能性。将 LLMs 直接部署到边缘设备（如智能手机、台式计算机和机器人）已成为计算领域的重要前沿，这有望为这些设备带来前所未有的智能化和自主性。  </p>
+<h4 id="边缘部署-LLMs-的优势"><a href="#边缘部署-LLMs-的优势" class="headerlink" title="边缘部署 LLMs 的优势"></a><strong>边缘部署 LLMs 的优势</strong></h4><p>在边缘设备上部署 LLMs 具有诸多显著优势。  </p>
+<ul>
+<li><strong>降低响应延迟</strong>：本地处理大幅减少了响应时间，这对于自动驾驶汽车和交互式机器人等对时延敏感的应用至关重要。  </li>
+<li><strong>增强用户隐私</strong>：本地数据处理可确保敏感信息不离开设备，从而降低数据泄露的风险。  </li>
+<li><strong>提高系统可靠性</strong>：由于边缘设备不依赖网络，即使在网络不稳定或不可用的情况下，也能保持一致的功能。</li>
+</ul>
+<h4 id="边缘部署-LLMs-的挑战"><a href="#边缘部署-LLMs-的挑战" class="headerlink" title="边缘部署 LLMs 的挑战"></a><strong>边缘部署 LLMs 的挑战</strong></h4><p>尽管 LLM-on-edge 具有诸多优势，但其部署也面临着三大主要挑战：  </p>
+<ol>
+<li><p><strong>高内存需求</strong><br>部署 LLMs 的主要挑战是其庞大的内存需求。LLMs 通常包含数十亿个参数，例如 <strong>LLAMA-2-7B</strong> 在 <strong>FP16</strong> 精度下至少需要 <strong>14GB</strong> 内存才能运行，而边缘设备的内存资源通常十分有限，这使得本地部署面临严峻的限制。  </p>
+</li>
+<li><p><strong>计算和带宽瓶颈</strong><br>除了内存容量外，LLMs 对计算能力和内存带宽的高要求也是边缘部署的一大障碍。边缘设备通常以 <strong>单实例</strong> 方式运行，通常批量大小（batch size）为 <strong>1</strong>，以支持用户的 <strong>实时交互</strong>。  </p>
+<ul>
+<li>LLM 推理过程分为两个阶段：<strong>预填充（Prefill）</strong> 和 <strong>解码（Decode）</strong>。  </li>
+<li><strong>预填充阶段</strong>：涉及 <strong>自注意力机制</strong>（Self-Attention）应用于所有输入 token，需要进行大量 <strong>矩阵-矩阵乘法</strong>（GEMM），计算量极大。  </li>
+<li><strong>解码阶段</strong>：成为主要瓶颈。每生成一个新的 token，都需要加载和处理整个模型，这意味着执行大量 <strong>内存密集型的矩阵-向量乘法</strong>（GEMV）。</li>
+</ul>
+</li>
+<li><p><strong>功耗与能效</strong><br>对于智能手机、机器人等 <strong>电池供电的边缘设备</strong>，能效至关重要。这些设备需要在有限的能源储备下长时间运行，因此 <strong>如何提高 LLMs 的能效</strong> 是一个核心挑战。</p>
+</li>
+</ol>
+<h3 id="2-2-Low-Bit-Weight-Quantized-LLM"><a href="#2-2-Low-Bit-Weight-Quantized-LLM" class="headerlink" title="2.2 Low-Bit (Weight-Quantized) LLM"></a>2.2 Low-Bit (Weight-Quantized) LLM</h3><p>LLM 推理的 <strong>高内存占用</strong> 迫使我们采用有效的策略，以 <strong>减少模型的内存开销</strong>，同时尽量 <strong>保持模型性能</strong> 不受严重影响。其中，<strong>权重量化（Weight Quantization）</strong> 是实现这一平衡的关键技术。  </p>
+<p><strong>权重量化</strong> 通过降低模型参数的 <strong>数值精度</strong> 来减少存储需求，并且可以利用 <strong>低精度运算</strong> 加速计算 [17, 20, 25]。目前，许多 LLMs 都提供 <strong>4-bit 量化版本</strong>，专门用于 <strong>边缘设备</strong> 或 <strong>其他资源受限的环境</strong> [32, 36]。  </p>
+<p>最近的研究进一步突破了这一限制，探索 <strong>2-bit</strong> 甚至 <strong>1-bit</strong> 权重表示在 LLMs 中的可行性 [18, 33, 35]。  </p>
+<p>从本质上讲，<strong>权重量化的比特宽度（bit-width）选择</strong> 代表了一种 <strong>计算效率与模型精度之间的权衡</strong>。</p>
+<h3 id="2-3-Deployment-Challenges-of-Low-Bit-LLM"><a href="#2-3-Deployment-Challenges-of-Low-Bit-LLM" class="headerlink" title="2.3 Deployment Challenges of Low-Bit LLM"></a>2.3 Deployment Challenges of Low-Bit LLM</h3><p>在边缘设备上部署 LLM，采用<strong>低比特量化</strong>已成为必要趋势。事实上，许多 <strong>LLM-on-Edge</strong> 系统和实现已经在积极应用低比特技术 [2, 5]。然而，部署低比特 LLM 也带来了<strong>独特的计算挑战</strong>，主要包括：  </p>
+<ol>
+<li><strong>混合精度运算（Mixed-Precision Computation）</strong>：大多数硬件架构 <strong>不支持</strong> 混合精度计算，而低比特 LLM 需要支持不同比特宽度的运算。  </li>
+<li><strong>多种比特宽度和精度需求</strong>：不同应用场景对比特宽度和精度的需求不同，导致计算复杂度提高。</li>
+</ol>
+<hr>
+<h3 id="混合精度-GEMM-GEMV（mpGEMM-mpGEMV）"><a href="#混合精度-GEMM-GEMV（mpGEMM-mpGEMV）" class="headerlink" title="混合精度 GEMM&#x2F;GEMV（mpGEMM, mpGEMV）"></a><strong>混合精度 GEMM&#x2F;GEMV（mpGEMM, mpGEMV）</strong></h3><p>低比特 LLMs 采用 <strong>低精度权重</strong> 与 <strong>较高精度的激活值</strong> 进行计算，这与传统的标准矩阵乘法（GEMM, GEMV）不同，必须使用 <strong>混合精度矩阵运算</strong>（mpGEMM, mpGEMV）。  </p>
+<p><strong>硬件支持问题</strong>：当前的 <strong>CPU、GPU 和 NPU</strong> 架构 <strong>不原生支持</strong> 混合精度计算，它们通常针对标准计算优化，即<strong>操作数的精度和数据类型必须一致</strong>。  </p>
+<p><strong>现有解决方案</strong>：现有系统通常采用 <strong>反量化（Dequantization）</strong>，即 <strong>将低精度权重转换回高精度，以匹配激活值的精度</strong>，然后使用标准高精度 GEMM 进行计算。例如，<strong>Intel Neural Compressor</strong> 和 <strong>llama.cpp</strong> 都使用此方法。  </p>
+<p><strong>局限性</strong>：  </p>
+<ul>
+<li>反量化过程 <strong>必须与内存加载并行</strong>，否则会成为瓶颈。  </li>
+<li>由于最终仍然使用高精度计算，因此 <strong>无法完全发挥低比特权重的优势</strong>（如降低内存占用、提升计算速度）。</li>
+</ul>
+<hr>
+<h3 id="比特宽度-精度的多样性"><a href="#比特宽度-精度的多样性" class="headerlink" title="比特宽度&#x2F;精度的多样性"></a><strong>比特宽度&#x2F;精度的多样性</strong></h3><p>除了混合精度计算的挑战，不同的部署场景 <strong>需要不同的比特宽度和精度</strong>，进一步增加了计算的复杂性。例如：  </p>
+<ul>
+<li><strong>任务难度</strong> 影响比特宽度的选择  </li>
+<li><strong>不同设备</strong> 具有不同的计算能力和功耗要求</li>
+</ul>
+<p>没有 <strong>单一的比特宽度或精度</strong> 能够适应所有应用场景。因此，计算方法必须能够支持 <strong>不同的低比特宽度</strong>，以确保在各种边缘计算任务中的 <strong>适应性和高效性</strong>。</p>
+<h2 id="3-Design"><a href="#3-Design" class="headerlink" title="3 Design"></a>3 Design</h2><p>当前的混合精度 GEMM 实现通常是 <strong>逐个案例</strong> 进行的，每种激活值和权重的比特宽度组合（如 W4A16 和 W2A8）都需要特定的权重布局和计算内核。例如，W3 的布局可能需要将 2 比特和 1 比特分开存储，并采用不同的 <strong>内存对齐</strong> 或 <strong>快速解码</strong> 的交织或换位方法。对应的计算内核则需要解包这种特定布局，将其转换为硬件支持的数据类型以便执行。</p>
+<p>为了提供一个统一且可扩展的 <strong>混合精度 GEMM 解决方案</strong>，本文将传统的数据类型中心计算转换为 <strong>逐位计算</strong>，基于线性等效变换公式 (Eq. 1)。对于混合精度 GEMM，其中，𝐴 为激活矩阵，𝑊 为权重矩阵，𝑛 是权重的比特宽度，𝑊𝑖 为每一比特矩阵。公式如下：</p>
+<p>$$<br>A \times W &#x3D; A \times \left( \sum_{i&#x3D;0}^{n-1} 2^i W_i \right) &#x3D; \sum_{i&#x3D;0}^{n-1} 2^i A \times W_i<br>$$</p>
+<p>通过这种方式，各种不同的权重布局被简化为统一的 <strong>一比特矩阵布局</strong>，并且不同的计算内核也被简化为 <strong>激活矩阵与一比特矩阵的统一乘法</strong>。此外，逐位计算使得随着比特宽度的降低，计算成本可以 <strong>线性缩减</strong>。</p>
+<p>本文利用 <strong>LUT 方法</strong> 实现这种逐位布局和乘法（见 3.1 节），并提出了 <strong>LUT 中心的数据布局</strong>（见 3.2 节），以及 <strong>表格压缩方法</strong>（见 3.3 节），以实现 <strong>寄存器中的表格存储</strong> 和 <strong>最快的并行查找</strong>。</p>
+<h3 id="3-1-T-MAC-Algorithm"><a href="#3-1-T-MAC-Algorithm" class="headerlink" title="3.1 T-MAC Algorithm"></a>3.1 T-MAC Algorithm</h3><h4 id="图2和算法1展示了T-MAC的设计。"><a href="#图2和算法1展示了T-MAC的设计。" class="headerlink" title="图2和算法1展示了T-MAC的设计。"></a>图2和算法1展示了T-MAC的设计。</h4><p><img src="/./figure.2.png" alt="figure 2"><br>在离线准备阶段（第29至35行），一个𝑛位权重矩阵被分解成𝑛个一位矩阵。由于一个比特只能表示两个值，对于一个包含𝑔个比特的组，可能的排列数只有2^𝑔。这些排列可以预先计算，每个𝑔位的激活向量可以存储在一个表中。权重中的每个𝑎𝑔位组就成为一个索引，用于查找表中的预计算结果。因此，在T-MAC中，表被定义为保存[1,𝑔]×[𝑔,2𝑔]子矩阵乘法的结果，并且表的大小是[1,2𝑔]。在离线阶段，一块一位矩阵会连续地保存在内存中以促进快速加载。与常规矩阵乘法的平铺方式相同，这里的平铺也是为了在LUT过程中改善数据局部性和缓存利用率。</p>
+<p>在在线阶段，给定GEMM的输入激活，T-MAC会遍历每个[1,𝑔]的激活向量，并与[𝑔,2𝑔]位模式矩阵进行乘法运算，构建表（第16至27行）。在LUT过程中，每个一位权重矩阵的索引（即组）会用来查找表中的部分结果（第6至9行）。部分结果的累加最终将得到GEMM的结果（第12至14行）。<br><img src="/./alg1.png" alt="Alg 1"></p>
+<h4 id="LUT-based-mpGEMM的示例。"><a href="#LUT-based-mpGEMM的示例。" class="headerlink" title="LUT-based mpGEMM的示例。"></a>LUT-based mpGEMM的示例。</h4><p><img src="/./figure.3.png" alt="figure 2"><br>图3（左）展示了T-MAC在CPU上的实现示例。假设组大小𝑔 &#x3D; 4，索引矩阵的平铺大小为𝑊𝑖[𝐾𝑡𝑘,𝑀𝑡𝑚] &#x3D; [4,32]，位宽为𝑏 &#x3D; 4。右侧是使用llama.cpp实现mpGEMM的常规做法。对于T-MAC（左侧），首先将32个uint4类型的索引解包为uint8字节（蓝色），以确保与硬件数据类型和指令的兼容性。随后，使用uint8索引来查找表格。查找的结果随后会被拆分并转换为更高精度，以便与低比特LLM模型的量化比例进行乘法运算。</p>
+<p>相比之下，常规做法为这个4位模型设计了特定的计算内核。它首先将4位权重直接解码为int8，以便与硬件数据类型对齐，然后对激活和权重向量进行int8点积计算。类似地，结果将被转换为FP16，以便与量化比例进行乘法运算。llama.cpp的缓存平铺为𝑊[𝐾𝑡𝑘,𝑀𝑡𝑚] &#x3D; [32,1]。第3.2节将解释T-MAC与当前做法在平铺方面的不同理论。</p>
+<h4 id="LUT实现的挑战。"><a href="#LUT实现的挑战。" class="headerlink" title="LUT实现的挑战。"></a>LUT实现的挑战。</h4><p>从算法和示例中可以看出，基于LUT的mpGEMM暴露出以下挑战：(i) 随机数据访问。与当前做法中连续的数据访问相比，由于索引，表是随机访问的。因此，有必要将表存放在快速的片上内存中，以减少访问成本。(ii) 增大的片上内存使用。然而，与当前做法相比，LUT需要更多的片上内存。随着组大小𝑔的增加，表的大小会呈指数增长。例如，当𝑔 &#x3D; 4时，LUT的大小是原始激活的四倍。此外，与传统的GEMM实现相比，LUT方法会产生向量输出（如图3所示），这需要更多的片上内存来存储临时结果。再次考虑图3中的示例，LUT方法使用了144个8位寄存器，而llama.cpp使用了104个8位寄存器。</p>
+<p>为了解决上述问题，我们提出了两种主要技术：（a）LUT中心化数据布局，以便将中间结果和LUT存储到具有更高带宽的内存中；（b）减少LUT存储，以减小LUT大小并限制查找操作的数量。</p>
+<h3 id="3-2-LUT-Centric-Data-Layout"><a href="#3-2-LUT-Centric-Data-Layout" class="headerlink" title="3.2 LUT-Centric Data Layout"></a>3.2 LUT-Centric Data Layout</h3><p>如第3.1节所述，基于LUT的方法用于低比特GEMM时需要更多的内存来存储查找表和中间结果。另一方面，表查找通常由于随机内存访问而导致内存访问效率低下。为了解决内存存储和访问的低效问题，我们设计了一个LUT中心的数据布局来支持基于LUT的低比特GEMM。具体而言，它将查找表存储在片上内存（如寄存器）中，以加速表访问，并设计了轴重排和数据平铺来增强数据重用，以减少内存消耗。此外，为了提高效率，我们设计了平铺来增强数据重用，从而减轻片上内存的压力。</p>
+<p><strong>轴重排</strong><br>对于GEMM 𝐶[𝑁,𝑀] &#x3D; 𝐴[𝑁,𝐾] × 𝑊[𝑀,𝐾]，自然的循环方式是首先遍历空间轴𝑁和𝑀，然后是时间轴𝐾。然而，基于LUT的GEMM需要在𝐾轴上构建表格，当按照传统GEMM方式先遍历空间轴再遍历时间轴时，就会导致极大的表存储需求，即整个𝐴[𝑁,𝐾]的查找表。然而，如果我们交换轴的顺序，从空间轴优先改为时间轴优先，查找表将只需要保持一个较小的查找表[1,𝐾]。因此，T-MAC重排了轴的访问顺序，首先是时间轴𝐾，然后是空间轴𝑁和𝑀。</p>
+<p><strong>Tiling</strong><br>Tiling是优化GEMM数据局部性并通过重用片上内存的数据来减少内存需求的常见技术。假设GEMM 𝐶[𝑁,𝑀] &#x3D; 𝐴[𝑁,𝐾] × 𝑊[𝑀,𝐾]采用平铺𝐴[𝑁𝑡𝑛,𝐾𝑡𝑘]和𝑊[𝑀𝑡𝑚,𝐾𝑡𝑘]，处理一个平铺需要从DRAM加载数据到处理器的片上内存，而不是加载整个𝑁𝑡𝑛 ∗ 𝑀𝑡𝑚 ∗ 𝐾𝑡𝑘的数据。在传统的GEMM中，平铺大小𝑁𝑡𝑛和𝑀𝑡𝑚对效率有相等的影响，而𝐾𝑡𝑘则不会影响数据重用，并且设置为对齐内存事务。然而，在基于LUT的GEMM中，激活𝐴[𝑁,𝐾]需要处理以构建查找表，而权重𝑊[𝑀,𝐾]则可以共享相同的预计算查找表。也就是说，较大的𝑀𝑡𝑚平铺在𝑀上可以更好地重用查找表。T-MAC会仔细考虑平铺配置𝑁𝑡𝑛、𝑀𝑡𝑚和𝐾𝑡𝑘，以实现更好的数据重用。</p>
+<p><strong>布局优化</strong><br>除了通过轴重排和平铺来优化片上查找表访问，我们还设计了两种数据布局优化方法，即权重排列和交错，以进一步提高效率。</p>
+<p><strong>权重排列以实现顺序内存访问</strong><br>DRAM要求顺序访问以实现更高的带宽利用率，而在基于平铺的GEMM中，由于输入矩阵的平铺不是顺序存储的，因此会引入随机访问。为了解决这个问题，T-MAC设计了一种权重排列方法，将权重矩阵排列以对齐权重加载与内存事务。在确定GEMM调度后，T-MAC会排列输入矩阵，使得平铺按顺序存储，而不是整个矩阵。具体来说，T-MAC会将平铺中的元素按顺序展开，然后根据平铺访问顺序连接这些展开的平铺。注意，权重矩阵在LLM推理过程中不会被修改，因此这种排列可以在离线进行，不会引入推理中的额外成本。</p>
+<p><strong>权重交错以实现快速解包</strong><br>如第3.1节所述，权重矩阵在内存中是以打包格式存储的，并且在计算时需要解包。然而，由于现代CPU普遍使用的小端存储格式，整数中的字节是倒序存储的。因此，使用整数指令解包权重时需要额外的重排操作来返回正确的解包权重。由于权重矩阵在LLM推理过程中不会被修改，T-MAC可以通过交错存储打包的权重，以消除这种重排操作。图4展示了这种交错的示例，通过交错解包的权重可以直接产生所需的顺序权重。<br><img src="/./figure4.png" alt="figure 4"></p>
+<h3 id="3-3-减少LUT存储"><a href="#3-3-减少LUT存储" class="headerlink" title="3.3 减少LUT存储"></a>3.3 减少LUT存储</h3><p>在低比特LLM推理的基于LUT的方法中，查找表的大小是一个关键因素，影响存储需求和访问延迟，尤其是在第3.2节中优化片上内存的表查找时。更大的表大小不仅需要更多的内存空间，还会导致较慢的表访问速度。为了解决这一挑战，我们提出了两种优化策略：镜像合并和表量化。如图5所示，镜像合并利用了表值的对称特性，将表的长度减少一半，而表量化则将量化技术应用于表值本身，以减少表的宽度。这两种方法结合起来，可以显著减少查找表的存储占用（最多减少到原始大小的四分之一），而不会影响LLM推理的精度。<br><img src="/./figure5.png" alt="figure 5"></p>
+<p><strong>镜像合并</strong><br>在LLM推理查找表的上下文中，表值的固有对称性为优化提供了独特的机会。查找表中的每个正值自然地与其负值配对，反映了对零值的镜像对称。利用这种对称性，我们提出的镜像合并技术利用了只需显式存储一半表值的事实。剩余的一半可以通过简单地取负值来快速重构。这种表压缩方法是无损的，完全保留了模型的推理精度。此外，它证明了高度的效率，加速了查找表的预计算，减少了所需的存储，并加快了表访问速度。</p>
+<p><strong>表量化</strong><br>表量化的原理类似于权重和激活的量化，旨在降低表值的精度，以提高计算效率。例如，查找表中的值最初可以用16位浮动点（fp16）表示，然后量化为8位整数（int8），并通过一个缩放因子调整。表量化对模型精度的影响微乎其微。与激活量化不同，激活量化由于需要粗粒度和静态量化以确保快速计算，常常难以保持模型精度；而我们的量化方法采用更细的粒度（例如对于k&#x3D;4的情况量化8个值）和动态量化，以尽量减少精度下降。第5.6节中展示的结果表明，我们的表量化技术对整体模型精度几乎没有影响。就效率而言，表量化显著减少了查找表的存储需求并加快了查找过程。</p>
+<h2 id="4-Implementation"><a href="#4-Implementation" class="headerlink" title="4 Implementation"></a>4 Implementation</h2><h3 id="代码生成（Code-Generation-through-TVM）"><a href="#代码生成（Code-Generation-through-TVM）" class="headerlink" title="代码生成（Code Generation through TVM）"></a><strong>代码生成（Code Generation through TVM）</strong></h3><p>我们采用 <strong>TVM [14] + LLVM [24]</strong> 进行代码生成，这使我们能够针对不同形状的 GEMM（通用矩阵乘法）和不同硬件生成最优代码，并实现常见的优化技术，如 <strong>循环展开（loop unrolling）、向量化（vectorization）和常量折叠（constant folding）</strong>。<br>我们利用 <strong>TVM Tensorize</strong> 将硬件固有指令（intrinsics）嵌入到代码中，同时使用 <strong>AutoTVM [15]</strong> 自动优化代码，以适配不同的硬件目标。</p>
+<hr>
+<h3 id="API-和集成（API-and-Integration）"><a href="#API-和集成（API-and-Integration）" class="headerlink" title="API 和集成（API and Integration）"></a><strong>API 和集成（API and Integration）</strong></h3><p>我们提供 <strong>C++ 和 Python</strong> 统一的 API。GEMM 函数被封装到 <strong>TVM PackedFunc</strong> 之中，并且张量可以通过 <strong>DLPack [1]</strong> 结构传递，这样可以轻松与 <strong>PyTorch、NumPy</strong> 等框架进行互操作。  </p>
+<p>此外，我们还提供了额外的 <strong>C++ 封装</strong>，使得张量可以通过原始指针（raw pointers）传递，并且消除了对 TVM 运行时（runtime）的依赖。这种封装提供了一种更轻量级的方案，使其能够更方便地集成到其他 <strong>C++ 项目</strong> 中。</p>
+<hr>
+<h3 id="并行优化（Parallelism）"><a href="#并行优化（Parallelism）" class="headerlink" title="并行优化（Parallelism）"></a><strong>并行优化（Parallelism）</strong></h3><p>我们利用 <strong>TVM 运行时线程池（TVM runtime threadpool）</strong> 来动态分配 CPU 任务。然而，在将 <strong>T-MAC</strong> 集成到 <strong>llama.cpp</strong> 时，我们注意到 <strong>llama.cpp</strong> 线程池与 <strong>TVM 线程池</strong> 之间存在明显的冲突。<br>这种冲突是由于来自不同线程池的线程竞争 <strong>CPU 资源</strong>，导致显著的 <strong>性能下降</strong>。</p>
+<p><strong>解决方案：</strong><br>我们使用 <strong>TVM 生成 C++ 代码</strong>，而不是直接创建动态库文件（library files），然后后处理代码以 <strong>去除 TVM 运行时和线程池的依赖</strong>。<br>这样，生成的函数只会执行单个线程块（threadblock）的计算，然后我们可以在 <strong>llama.cpp 线程池</strong> 中分配这些线程块，从而实现 <strong>更好的性能和兼容性</strong>。<br>此外，生成的 C++ 代码 <strong>便于跨平台部署</strong>。</p>
+<hr>
+<h3 id="高效查找表（LUT）访问（Efficient-Table-Look-up-by-TBL-PSHUF）"><a href="#高效查找表（LUT）访问（Efficient-Table-Look-up-by-TBL-PSHUF）" class="headerlink" title="高效查找表（LUT）访问（Efficient Table Look-up by TBL&#x2F;PSHUF）"></a><strong>高效查找表（LUT）访问（Efficient Table Look-up by TBL&#x2F;PSHUF）</strong></h3><p>在将查找表（LUT）加载到 <strong>寄存器</strong> 后，我们可以利用 <strong>ARM NEON</strong> 和 <strong>Intel AVX2</strong> 提供的 <strong>硬件固有指令（hardware intrinsics）</strong> 来加速查找表访问。  </p>
+<ul>
+<li><strong>NEON&#x2F;AVX2 均提供 8-bit 查找指令（look-up instructions）。</strong></li>
+<li><strong>ARM NEON（128 位）</strong> 可以完全存储 <code>g=4</code> 的 LUT。</li>
+<li><strong>Intel AVX2（256 位）</strong> 由于分为 <strong>两个独立的 128-bit lane</strong>，需要 <strong>复制 LUT</strong> 以填满 256-bit 的查找表寄存器，从而 <strong>一次查找 32 个 int8 的权重索引</strong>。</li>
+</ul>
+<p>如果 <strong>查找表的数据类型是 float16</strong>，由于 <strong>NEON&#x2F;AVX2 不支持 16-bit 的查找表（LUT）</strong>，我们采用 <strong>分拆（splitting）</strong> 方法：</p>
+<ul>
+<li>将 <strong>float16 分成两个 8-bit 查找表</strong>，分别存储 <strong>低 8 位</strong> 和 <strong>高 8 位</strong>。</li>
+<li>通过 <strong>两次指令</strong> 查找低位和高位数据，然后重新合成为 <strong>float16</strong>。</li>
+</ul>
+<hr>
+<h3 id="快速-8-bit-聚合（Fast-8-bit-Aggregation）"><a href="#快速-8-bit-聚合（Fast-8-bit-Aggregation）" class="headerlink" title="快速 8-bit 聚合（Fast 8-bit Aggregation）"></a><strong>快速 8-bit 聚合（Fast 8-bit Aggregation）</strong></h3><p>除了查找表访问外，<strong>聚合计算（aggregation）</strong> 也是一个 <strong>主要的计算开销</strong>。为了加速聚合计算：</p>
+<ol>
+<li><strong>首先在低比特（low-bit）进行聚合计算</strong>，然后再转换为 <strong>高精度（如 float16）</strong>，保证 <strong>无精度损失</strong>。</li>
+<li>如果 <strong>查找表量化为 int8</strong>，则可以采用 <strong>快速 8-bit 聚合方法 [12]</strong>：<ul>
+<li><strong>通常情况下，int8 值需要转换为 int16</strong> 以防止溢出（overflow）。</li>
+<li>但 <strong>int16 指令吞吐量是 int8 的一半</strong>，计算效率降低。</li>
+<li><strong>优化方案：</strong><ul>
+<li><strong>使用 avg&#x2F;rhadd 指令计算平均值</strong>，然后在最终值上 <strong>减去概率性偏差（probabilistic bias）</strong> 以减少误差。</li>
+<li><strong>但需要注意：8-bit 快速聚合可能会导致不可忽略的精度损失</strong>（nonnegligible accuracy loss）。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p><strong>表 1</strong> 总结了不同 <strong>CPU 架构</strong> 上的 <strong>查找表访问和聚合计算的硬件固有指令（intrinsics）</strong>。<br><img src="/./table1.png" alt="table 1"></p>
+<hr>
+<h3 id="比特串行线性变换（Bit-serial-Linear-Transformation）"><a href="#比特串行线性变换（Bit-serial-Linear-Transformation）" class="headerlink" title="比特串行线性变换（Bit-serial Linear Transformation）"></a><strong>比特串行线性变换（Bit-serial Linear Transformation）</strong></h3><p>在 <strong>§3.1</strong> 提到的 <strong>分解（decomposition）</strong> 方法中，我们使用原始值 <code>vi</code>（即 <code>0</code> 和 <code>1</code>）。<br>然而，我们可以对这些值 <strong>引入线性变换（linear transformation）</strong>，如下所示：</p>
+<h4 id="线性变换定义："><a href="#线性变换定义：" class="headerlink" title="线性变换定义："></a><strong>线性变换定义：</strong></h4><p>定义线性变换为：<br>$<br>f(v_i)<br>$<br>,其变换值为：<br>$<br>f(0) &#x3D; s_0, \quad f(1) &#x3D; s_1<br>$,</p>
+<p>为了 <strong>加速预计算（precomputation）</strong> 并 <strong>减少量化误差（quantization error）</strong>，需要 <strong>谨慎选择</strong> <code>s0</code> 和 <code>s1</code> 的值：</p>
+<ul>
+<li>为了 <strong>避免浮点乘法指令（float-multiply instructions）</strong>，我们 <strong>从集合 {-1, 0, 1} 选择 <code>s0</code> 和 <code>s1</code></strong>。</li>
+<li>为了 <strong>减少量化误差</strong>，我们希望 <strong>最小化查找表（LUT）最大值与最小值之间的差异</strong>。</li>
+</ul>
+<h4 id="实验结果："><a href="#实验结果：" class="headerlink" title="实验结果："></a><strong>实验结果：</strong></h4><ul>
+<li>经过实验，我们发现 <strong>最优选择是 <code>s0 = -1</code> 和 <code>s1 = 1</code></strong>。</li>
+</ul>
+<hr>
+<h3 id="调整分解方式"><a href="#调整分解方式" class="headerlink" title="调整分解方式"></a><strong>调整分解方式</strong></h3><p>基于上述线性变换，我们对 <code>W</code> 的 <strong>分解（decomposition）</strong> 进行调整：<br>$$<br>f(v_i) &#x3D; \alpha’_i v_i + \beta’_i, \quad v_i &#x3D; \alpha_i f(v_i) + \beta_i<br>$$<br>其中：<br>$$<br>\alpha_i &#x3D; \frac{1}{\alpha’_i}, \quad \beta &#x3D; -\frac{\beta’_i}{\alpha’_i}<br>$$</p>
+<p>最终，矩阵 <code>W</code> 的分解表示为：<br>$$<br>W &#x3D; \sum_{i&#x3D;0}^{b-1} \alpha_i 2^i W’_i + B<br>$$<br>其中：<br>$$<br>W’<em>i &#x3D; f(W_i), \quad B &#x3D; J \cdot \sum</em>{i&#x3D;0}^{b-1}\beta2^i<br>$$<br><code>J</code> 是一个全 <strong>1</strong> 的矩阵。</p>
+<hr>
+<h3 id="寄存器混洗优化-LUT-预计算"><a href="#寄存器混洗优化-LUT-预计算" class="headerlink" title="寄存器混洗优化 LUT 预计算"></a><strong>寄存器混洗优化 LUT 预计算</strong></h3><p>如 <strong>§3.1</strong> 所示，我们选择 <strong>加法&#x2F;减法指令</strong> 代替 <strong>乘法指令</strong> 以提高吞吐量。  </p>
+<p>对于形状为 <strong>(𝑁, 𝐾&#x2F;𝑔, 2𝑔)</strong> 的查找表（LUT），加法&#x2F;减法可以沿 <strong>𝐾&#x2F;𝑔 轴</strong> 进行向量化。例如：<br>$$<br>𝐿𝑈𝑇[0,0 : 8,0] &#x3D; -𝐴[0,0 : 32 : 4] - 𝐴[0,1 : 32 : 4] - 𝐴[0,2 : 32 : 4] - 𝐴[0,3 : 32 : 4]<br>$$<br>其中，对 <strong>𝐴 的索引不是连续的</strong>。  </p>
+<p>我们利用 <strong>NEON 的 <code>LD4</code> 指令</strong> 和 <strong>AVX2 的 <code>vgatherdps</code> 指令</strong> 来高效加载非连续数据。  </p>
+<p>然而，在 <strong>AVX2</strong> 中，<strong>将非连续的 LUT 写回内存</strong> 时，从 <strong>SIMD 寄存器提取特定字节并写入内存</strong> 非常低效。  </p>
+<p>为了解决这一问题，我们使用 <strong>寄存器混洗（register swizzling）</strong> 来重新排列 LUT，使其可以连续写回内存。  </p>
+<p>具体操作如下：</p>
+<ol>
+<li><strong>使用 <code>vpblendvb</code></strong>：将 <strong>来自不同寄存器的 8-bit 值</strong> 混合到同一个寄存器。  </li>
+<li><strong>使用 <code>vpermd</code></strong>：对 <strong>256-bit 向量中的 32-bit 值</strong> 进行 <strong>置换（swizzle）</strong>。  </li>
+<li><strong>使用 <code>vpshufb</code></strong>：对 <strong>8-bit 值</strong> 进行 <strong>进一步洗牌（shuffle）</strong>，使其排列顺序正确。</li>
+</ol>
+<p>通过上述 <strong>swizzling 过程</strong>，LUT 可以 <strong>按连续方式写回内存</strong>，提高写回效率。</p>
+<h2 id="5-Evaluation"><a href="#5-Evaluation" class="headerlink" title="5 Evaluation"></a>5 Evaluation</h2>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/02/04/zhanx-first-blog/" rel="prev" title="Qserver">
+      <i class="fa fa-chevron-left"></i> Qserver
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%91%98%E8%A6%81"><span class="nav-number">1.</span> <span class="nav-text">摘要</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E5%BC%95%E5%85%A5"><span class="nav-number">2.</span> <span class="nav-text">1 引入</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%AC%E6%96%87%E7%9A%84%E7%9B%AE%E6%A0%87"><span class="nav-number">2.1.</span> <span class="nav-text">本文的目标</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%B3%E9%94%AE%E6%80%9D%E6%83%B3"><span class="nav-number">2.2.</span> <span class="nav-text">关键思想</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%87%87%E7%94%A8%E6%9F%A5%E6%89%BE%E8%A1%A8%EF%BC%88LUT%EF%BC%89%E5%AE%9E%E7%8E%B0%E6%8C%89%E4%BD%8D%E8%AE%A1%E7%AE%97"><span class="nav-number">2.3.</span> <span class="nav-text">采用查找表（LUT）实现按位计算</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97%E4%BC%98%E5%8C%96"><span class="nav-number">2.4.</span> <span class="nav-text">计算优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BB%E8%A6%81%E6%8C%91%E6%88%98%EF%BC%9A"><span class="nav-number">2.5.</span> <span class="nav-text">主要挑战：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#T-MAC-%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="nav-number">2.6.</span> <span class="nav-text">T-MAC 解决方案</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E9%99%8D%E4%BD%8E-LUT-%E9%9A%8F%E6%9C%BA%E8%AE%BF%E9%97%AE%E6%88%90%E6%9C%AC"><span class="nav-number">2.6.1.</span> <span class="nav-text">1. 降低 LUT 随机访问成本</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E9%80%82%E7%94%A8%E4%BA%8E%E5%B9%BF%E6%B3%9B%E7%9A%84-CPU-%E7%AB%AF%E8%AE%BE%E5%A4%87"><span class="nav-number">2.7.</span> <span class="nav-text">2. 适用于广泛的 CPU 端设备</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-T-MAC-%E6%80%A7%E8%83%BD%E8%AF%84%E6%B5%8B"><span class="nav-number">2.8.</span> <span class="nav-text">3. T-MAC 性能评测</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E6%9C%AC%E6%96%87%E8%B4%A1%E7%8C%AE"><span class="nav-number">2.9.</span> <span class="nav-text">4. 本文贡献</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E8%83%8C%E6%99%AF%E5%92%8C%E5%8A%A8%E6%9C%BA"><span class="nav-number">3.</span> <span class="nav-text">2 背景和动机</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-LLM-on-Edge"><span class="nav-number">3.1.</span> <span class="nav-text">2.1 LLM on Edge</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%BE%B9%E7%BC%98%E9%83%A8%E7%BD%B2-LLMs-%E7%9A%84%E4%BC%98%E5%8A%BF"><span class="nav-number">3.1.1.</span> <span class="nav-text">边缘部署 LLMs 的优势</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%BE%B9%E7%BC%98%E9%83%A8%E7%BD%B2-LLMs-%E7%9A%84%E6%8C%91%E6%88%98"><span class="nav-number">3.1.2.</span> <span class="nav-text">边缘部署 LLMs 的挑战</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-Low-Bit-Weight-Quantized-LLM"><span class="nav-number">3.2.</span> <span class="nav-text">2.2 Low-Bit (Weight-Quantized) LLM</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-Deployment-Challenges-of-Low-Bit-LLM"><span class="nav-number">3.3.</span> <span class="nav-text">2.3 Deployment Challenges of Low-Bit LLM</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B7%B7%E5%90%88%E7%B2%BE%E5%BA%A6-GEMM-GEMV%EF%BC%88mpGEMM-mpGEMV%EF%BC%89"><span class="nav-number">3.4.</span> <span class="nav-text">混合精度 GEMM&#x2F;GEMV（mpGEMM, mpGEMV）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%AF%94%E7%89%B9%E5%AE%BD%E5%BA%A6-%E7%B2%BE%E5%BA%A6%E7%9A%84%E5%A4%9A%E6%A0%B7%E6%80%A7"><span class="nav-number">3.5.</span> <span class="nav-text">比特宽度&#x2F;精度的多样性</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-Design"><span class="nav-number">4.</span> <span class="nav-text">3 Design</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-T-MAC-Algorithm"><span class="nav-number">4.1.</span> <span class="nav-text">3.1 T-MAC Algorithm</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9B%BE2%E5%92%8C%E7%AE%97%E6%B3%951%E5%B1%95%E7%A4%BA%E4%BA%86T-MAC%E7%9A%84%E8%AE%BE%E8%AE%A1%E3%80%82"><span class="nav-number">4.1.1.</span> <span class="nav-text">图2和算法1展示了T-MAC的设计。</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#LUT-based-mpGEMM%E7%9A%84%E7%A4%BA%E4%BE%8B%E3%80%82"><span class="nav-number">4.1.2.</span> <span class="nav-text">LUT-based mpGEMM的示例。</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#LUT%E5%AE%9E%E7%8E%B0%E7%9A%84%E6%8C%91%E6%88%98%E3%80%82"><span class="nav-number">4.1.3.</span> <span class="nav-text">LUT实现的挑战。</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-LUT-Centric-Data-Layout"><span class="nav-number">4.2.</span> <span class="nav-text">3.2 LUT-Centric Data Layout</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-%E5%87%8F%E5%B0%91LUT%E5%AD%98%E5%82%A8"><span class="nav-number">4.3.</span> <span class="nav-text">3.3 减少LUT存储</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-Implementation"><span class="nav-number">5.</span> <span class="nav-text">4 Implementation</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E7%94%9F%E6%88%90%EF%BC%88Code-Generation-through-TVM%EF%BC%89"><span class="nav-number">5.1.</span> <span class="nav-text">代码生成（Code Generation through TVM）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#API-%E5%92%8C%E9%9B%86%E6%88%90%EF%BC%88API-and-Integration%EF%BC%89"><span class="nav-number">5.2.</span> <span class="nav-text">API 和集成（API and Integration）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B9%B6%E8%A1%8C%E4%BC%98%E5%8C%96%EF%BC%88Parallelism%EF%BC%89"><span class="nav-number">5.3.</span> <span class="nav-text">并行优化（Parallelism）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%AB%98%E6%95%88%E6%9F%A5%E6%89%BE%E8%A1%A8%EF%BC%88LUT%EF%BC%89%E8%AE%BF%E9%97%AE%EF%BC%88Efficient-Table-Look-up-by-TBL-PSHUF%EF%BC%89"><span class="nav-number">5.4.</span> <span class="nav-text">高效查找表（LUT）访问（Efficient Table Look-up by TBL&#x2F;PSHUF）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BF%AB%E9%80%9F-8-bit-%E8%81%9A%E5%90%88%EF%BC%88Fast-8-bit-Aggregation%EF%BC%89"><span class="nav-number">5.5.</span> <span class="nav-text">快速 8-bit 聚合（Fast 8-bit Aggregation）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%AF%94%E7%89%B9%E4%B8%B2%E8%A1%8C%E7%BA%BF%E6%80%A7%E5%8F%98%E6%8D%A2%EF%BC%88Bit-serial-Linear-Transformation%EF%BC%89"><span class="nav-number">5.6.</span> <span class="nav-text">比特串行线性变换（Bit-serial Linear Transformation）</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%BA%BF%E6%80%A7%E5%8F%98%E6%8D%A2%E5%AE%9A%E4%B9%89%EF%BC%9A"><span class="nav-number">5.6.1.</span> <span class="nav-text">线性变换定义：</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AE%9E%E9%AA%8C%E7%BB%93%E6%9E%9C%EF%BC%9A"><span class="nav-number">5.6.2.</span> <span class="nav-text">实验结果：</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B0%83%E6%95%B4%E5%88%86%E8%A7%A3%E6%96%B9%E5%BC%8F"><span class="nav-number">5.7.</span> <span class="nav-text">调整分解方式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AF%84%E5%AD%98%E5%99%A8%E6%B7%B7%E6%B4%97%E4%BC%98%E5%8C%96-LUT-%E9%A2%84%E8%AE%A1%E7%AE%97"><span class="nav-number">5.8.</span> <span class="nav-text">寄存器混洗优化 LUT 预计算</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-Evaluation"><span class="nav-number">6.</span> <span class="nav-text">5 Evaluation</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Zhanx</p>
+  <div class="site-description" itemprop="description">真理永存</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhanx</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

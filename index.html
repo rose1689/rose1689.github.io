@@ -172,7 +172,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2025-02-08 12:52:18 / 修改时间：13:51:18" itemprop="dateCreated datePublished" datetime="2025-02-08T12:52:18+08:00">2025-02-08</time>
+              <time title="创建时间：2025-02-08 12:52:18 / 修改时间：13:56:39" itemprop="dateCreated datePublished" datetime="2025-02-08T12:52:18+08:00">2025-02-08</time>
             </span>
 
           
@@ -186,10 +186,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>在边缘设备上部署大语言模型（LLMs）对于增强设备端智能变得越来越重要。权重量化（weight quantization）对于减少LLMs在设备上的内存占用至关重要。然而，低比特（low-bit）的LLMs在推理过程中需要<strong>混合精度矩阵乘法（mpGEMM）</strong>，其中低精度权重与高精度激活值进行计算。现有系统由于缺乏对mpGEMM的原生支持，不得不先对权重进行反量化（dequantization）以进行高精度计算。这种间接方法会导致<strong>显著的推理开销</strong>。</p>
-<p>在本文中，我们提出 T-MAC，一种创新的基于查找表（LUT）的方法，专为在<strong>CPU</strong>上高效推理低比特LLM（即权重量化LLM）而设计。T-MAC无需反量化即可直接支持mpGEMM，同时消除了乘法操作并减少了加法操作的需求。<strong>具体而言，T-MAC 将传统的数据类型驱动的乘法转换为按位（bit-wise）查找表查询，并提供了一种统一且可扩展的mpGEMM解决方案。</strong></p>
-<p>我们的LUT-based（基于查找表）计算核心在权重比特宽度上具备线性可扩展性。在低比特的 Llama 和 BitNet 模型上进行评测，T-MAC 相较于 llama.cpp 实现了 高达 4× 的吞吐量提升，并将能耗降低了 70%。在 BitNet-b1.58-3B 模型上，T-MAC 在 M2-Ultra 处理器上单核生成速率可达 30 tokens&#x2F;s，八核可达 71 tokens&#x2F;s；在 Raspberry Pi 5 等低端设备上，生成速率达到 11 tokens&#x2F;s，远超成人平均阅读速度。</p>
-<p>T-MAC 通过 LUT-based 计算范式，为低比特 LLM 在资源受限的边缘设备上的实际部署铺平了道路，而不会影响计算效率。该系统已开源，地址为：<a target="_blank" rel="noopener" href="https://github.com/microsoft/T-MAC%E3%80%82">https://github.com/microsoft/T-MAC。</a></p>
+          <p>这是一篇介绍T-MAC：CPURenaissance via Table Lookup for Low-Bit LLM Deployment on Edge论文的博客</p>
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/2025/02/08/T-MAC/#more" rel="contents">

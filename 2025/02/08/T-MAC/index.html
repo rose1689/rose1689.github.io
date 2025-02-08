@@ -27,18 +27,18 @@
 <meta property="og:site_name" content="NATSU">
 <meta property="og:description" content="这是一篇介绍T-MAC：CPURenaissance via Table Lookup for Low-Bit LLM Deployment on Edge论文的博客">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://example/project/project/2025/02/08/T-MAC/Blog/source_posts/T-MAC/figure1.png">
-<meta property="og:image" content="https://example/project/project/2025/02/08/T-MAC/Blog/source_posts/T-MAC/figure.2.png">
-<meta property="og:image" content="https://example/project/project/2025/02/08/T-MAC/Blog/source_posts/T-MAC/alg1.png">
-<meta property="og:image" content="https://example/project/project/2025/02/08/T-MAC/Blog/source_posts/T-MAC/figure.3.png">
-<meta property="og:image" content="https://example/project/project/2025/02/08/T-MAC/Blog/source_posts/T-MAC/figure4.png">
-<meta property="og:image" content="https://example/project/project/2025/02/08/T-MAC/Blog/source_posts/T-MAC/figure5.png">
-<meta property="og:image" content="https://example/project/project/2025/02/08/T-MAC/Blog/source_posts/T-MAC/table1.png">
+<meta property="og:image" content="d:\Blog\source_posts\T-MAC\figure1.png">
+<meta property="og:image" content="d:\Blog\source_posts\T-MAC\figure.2.png">
+<meta property="og:image" content="d:\Blog\source_posts\T-MAC\alg1.png">
+<meta property="og:image" content="d:\Blog\source_posts\T-MAC\figure.3.png">
+<meta property="og:image" content="d:\Blog\source_posts\T-MAC\figure4.png">
+<meta property="og:image" content="d:\Blog\source_posts\T-MAC\figure5.png">
+<meta property="og:image" content="d:\Blog\source_posts\T-MAC\table1.png">
 <meta property="article:published_time" content="2025-02-08T04:52:18.000Z">
 <meta property="article:modified_time" content="2025-02-08T06:14:49.958Z">
 <meta property="article:author" content="Zhanx">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://example/project/project/2025/02/08/T-MAC/Blog/source_posts/T-MAC/figure1.png">
+<meta name="twitter:image" content="d:\Blog\source_posts\T-MAC\figure1.png">
 
 <link rel="canonical" href="https://example/project/2025/02/08/T-MAC/">
 
@@ -251,7 +251,7 @@
 </li>
 </ol>
 <hr>
-<h3 id="T-MAC-解决方案"><a href="#T-MAC-解决方案" class="headerlink" title="T-MAC 解决方案"></a><strong>T-MAC 解决方案</strong></h3><p>为了解决上述挑战，本文提出了 <strong>T-MAC mpGEMM 计算核心库</strong>。如 <strong>图 1</strong> 所示，T-MAC 基于<strong>按位计算（bit-wise computation）</strong> 和 <strong>查找表（LUT）</strong> 实现，提供了<strong>统一、可扩展</strong>的混合比特宽度计算方案。<br><img src="/project/project/2025/02/08/T-MAC/Blog\source_posts\T-MAC\figure1.png" alt="figure 1"></p>
+<h3 id="T-MAC-解决方案"><a href="#T-MAC-解决方案" class="headerlink" title="T-MAC 解决方案"></a><strong>T-MAC 解决方案</strong></h3><p>为了解决上述挑战，本文提出了 <strong>T-MAC mpGEMM 计算核心库</strong>。如 <strong>图 1</strong> 所示，T-MAC 基于<strong>按位计算（bit-wise computation）</strong> 和 <strong>查找表（LUT）</strong> 实现，提供了<strong>统一、可扩展</strong>的混合比特宽度计算方案。<br><img src="D:\Blog\source_posts\T-MAC\figure1.png" alt="figure 1"></p>
 <h4 id="1-降低-LUT-随机访问成本"><a href="#1-降低-LUT-随机访问成本" class="headerlink" title="1. 降低 LUT 随机访问成本"></a><strong>1. 降低 LUT 随机访问成本</strong></h4><p>T-MAC 从 <strong>系统（system）</strong> 和 <strong>算法（algorithm）</strong> 角度提出优化策略，使 LUT 可以存储在最快的片上存储器中，并支持<strong>并行查找</strong>：  </p>
 <ul>
 <li><p><strong>系统优化（System-side Optimization）</strong>  </p>
@@ -352,9 +352,9 @@
 <p>$$<br>A \times W &#x3D; A \times \left( \sum_{i&#x3D;0}^{n-1} 2^i W_i \right) &#x3D; \sum_{i&#x3D;0}^{n-1} 2^i A \times W_i<br>$$</p>
 <p>通过这种方式，各种不同的权重布局被简化为统一的 <strong>一比特矩阵布局</strong>，并且不同的计算内核也被简化为 <strong>激活矩阵与一比特矩阵的统一乘法</strong>。此外，逐位计算使得随着比特宽度的降低，计算成本可以 <strong>线性缩减</strong>。</p>
 <p>本文利用 <strong>LUT 方法</strong> 实现这种逐位布局和乘法（见 3.1 节），并提出了 <strong>LUT 中心的数据布局</strong>（见 3.2 节），以及 <strong>表格压缩方法</strong>（见 3.3 节），以实现 <strong>寄存器中的表格存储</strong> 和 <strong>最快的并行查找</strong>。</p>
-<h3 id="3-1-T-MAC-Algorithm"><a href="#3-1-T-MAC-Algorithm" class="headerlink" title="3.1 T-MAC Algorithm"></a>3.1 T-MAC Algorithm</h3><h4 id="图2和算法1展示了T-MAC的设计。"><a href="#图2和算法1展示了T-MAC的设计。" class="headerlink" title="图2和算法1展示了T-MAC的设计。"></a>图2和算法1展示了T-MAC的设计。</h4><p><img src="/project/project/2025/02/08/T-MAC/Blog\source_posts\T-MAC\figure.2.png" alt="figure 2"><br>在离线准备阶段（第29至35行)，一个𝑛位权重矩阵被分解成𝑛个一位矩阵。由于一个比特只能表示两个值，对于一个包含𝑔个比特的组，可能的排列数只有2^𝑔。这些排列可以预先计算，每个𝑔位的激活向量可以存储在一个表中。权重中的每个𝑎𝑔位组就成为一个索引，用于查找表中的预计算结果。因此，在T-MAC中，表被定义为保存[1,𝑔]×[𝑔,2𝑔]子矩阵乘法的结果，并且表的大小是[1,2𝑔]。在离线阶段，一块一位矩阵会连续地保存在内存中以促进快速加载。与常规矩阵乘法的平铺方式相同，这里的平铺也是为了在LUT过程中改善数据局部性和缓存利用率。</p>
-<p>在在线阶段，给定GEMM的输入激活，T-MAC会遍历每个[1,𝑔]的激活向量，并与[𝑔,2𝑔]位模式矩阵进行乘法运算，构建表（第16至27行）。在LUT过程中，每个一位权重矩阵的索引（即组）会用来查找表中的部分结果（第6至9行）。部分结果的累加最终将得到GEMM的结果（第12至14行）。<br><img src="/project/project/2025/02/08/T-MAC/Blog\source_posts\T-MAC\alg1.png" alt="alg1"></p>
-<h4 id="LUT-based-mpGEMM的示例。"><a href="#LUT-based-mpGEMM的示例。" class="headerlink" title="LUT-based mpGEMM的示例。"></a>LUT-based mpGEMM的示例。</h4><p><img src="/project/project/2025/02/08/T-MAC/Blog\source_posts\T-MAC\figure.3.png" alt="figure 3"><br>图3（左）展示了T-MAC在CPU上的实现示例。假设组大小𝑔 &#x3D; 4，索引矩阵的平铺大小为𝑊𝑖[𝐾𝑡𝑘,𝑀𝑡𝑚] &#x3D; [4,32]，位宽为𝑏 &#x3D; 4。右侧是使用llama.cpp实现mpGEMM的常规做法。对于T-MAC（左侧），首先将32个uint4类型的索引解包为uint8字节（蓝色)，以确保与硬件数据类型和指令的兼容性。随后，使用uint8索引来查找表格。查找的结果随后会被拆分并转换为更高精度，以便与低比特LLM模型的量化比例进行乘法运算。</p>
+<h3 id="3-1-T-MAC-Algorithm"><a href="#3-1-T-MAC-Algorithm" class="headerlink" title="3.1 T-MAC Algorithm"></a>3.1 T-MAC Algorithm</h3><h4 id="图2和算法1展示了T-MAC的设计。"><a href="#图2和算法1展示了T-MAC的设计。" class="headerlink" title="图2和算法1展示了T-MAC的设计。"></a>图2和算法1展示了T-MAC的设计。</h4><p><img src="D:\Blog\source_posts\T-MAC\figure.2.png" alt="figure 2"><br>在离线准备阶段（第29至35行)，一个𝑛位权重矩阵被分解成𝑛个一位矩阵。由于一个比特只能表示两个值，对于一个包含𝑔个比特的组，可能的排列数只有2^𝑔。这些排列可以预先计算，每个𝑔位的激活向量可以存储在一个表中。权重中的每个𝑎𝑔位组就成为一个索引，用于查找表中的预计算结果。因此，在T-MAC中，表被定义为保存[1,𝑔]×[𝑔,2𝑔]子矩阵乘法的结果，并且表的大小是[1,2𝑔]。在离线阶段，一块一位矩阵会连续地保存在内存中以促进快速加载。与常规矩阵乘法的平铺方式相同，这里的平铺也是为了在LUT过程中改善数据局部性和缓存利用率。</p>
+<p>在在线阶段，给定GEMM的输入激活，T-MAC会遍历每个[1,𝑔]的激活向量，并与[𝑔,2𝑔]位模式矩阵进行乘法运算，构建表（第16至27行）。在LUT过程中，每个一位权重矩阵的索引（即组）会用来查找表中的部分结果（第6至9行）。部分结果的累加最终将得到GEMM的结果（第12至14行）。<br><img src="D:\Blog\source_posts\T-MAC\alg1.png" alt="alg1"></p>
+<h4 id="LUT-based-mpGEMM的示例。"><a href="#LUT-based-mpGEMM的示例。" class="headerlink" title="LUT-based mpGEMM的示例。"></a>LUT-based mpGEMM的示例。</h4><p><img src="D:\Blog\source_posts\T-MAC\figure.3.png" alt="figure 3"><br>图3（左）展示了T-MAC在CPU上的实现示例。假设组大小𝑔 &#x3D; 4，索引矩阵的平铺大小为𝑊𝑖[𝐾𝑡𝑘,𝑀𝑡𝑚] &#x3D; [4,32]，位宽为𝑏 &#x3D; 4。右侧是使用llama.cpp实现mpGEMM的常规做法。对于T-MAC（左侧），首先将32个uint4类型的索引解包为uint8字节（蓝色)，以确保与硬件数据类型和指令的兼容性。随后，使用uint8索引来查找表格。查找的结果随后会被拆分并转换为更高精度，以便与低比特LLM模型的量化比例进行乘法运算。</p>
 <p>相比之下，常规做法为这个4位模型设计了特定的计算内核。它首先将4位权重直接解码为int8，以便与硬件数据类型对齐，然后对激活和权重向量进行int8点积计算。类似地，结果将被转换为FP16，以便与量化比例进行乘法运算。llama.cpp的缓存平铺为𝑊[𝐾𝑡𝑘,𝑀𝑡𝑚] &#x3D; [32,1]。第3.2节将解释T-MAC与当前做法在平铺方面的不同理论。</p>
 <h4 id="LUT实现的挑战。"><a href="#LUT实现的挑战。" class="headerlink" title="LUT实现的挑战。"></a>LUT实现的挑战。</h4><p>从算法和示例中可以看出，基于LUT的mpGEMM暴露出以下挑战：(i) 随机数据访问。与当前做法中连续的数据访问相比，由于索引，表是随机访问的。因此，有必要将表存放在快速的片上内存中，以减少访问成本。(ii) 增大的片上内存使用。然而，与当前做法相比，LUT需要更多的片上内存。随着组大小𝑔的增加，表的大小会呈指数增长。例如，当𝑔 &#x3D; 4时，LUT的大小是原始激活的四倍。此外，与传统的GEMM实现相比，LUT方法会产生向量输出（如图3所示），这需要更多的片上内存来存储临时结果。再次考虑图3中的示例，LUT方法使用了144个8位寄存器，而llama.cpp使用了104个8位寄存器。</p>
 <p>为了解决上述问题，我们提出了两种主要技术：（a）LUT中心化数据布局，以便将中间结果和LUT存储到具有更高带宽的内存中；（b）减少LUT存储，以减小LUT大小并限制查找操作的数量。</p>
@@ -363,8 +363,8 @@
 <p><strong>Tiling</strong><br>Tiling是优化GEMM数据局部性并通过重用片上内存的数据来减少内存需求的常见技术。假设GEMM 𝐶[𝑁,𝑀] &#x3D; 𝐴[𝑁,𝐾] × 𝑊[𝑀,𝐾]采用平铺𝐴[𝑁𝑡𝑛,𝐾𝑡𝑘]和𝑊[𝑀𝑡𝑚,𝐾𝑡𝑘]，处理一个平铺需要从DRAM加载数据到处理器的片上内存，而不是加载整个𝑁𝑡𝑛 ∗ 𝑀𝑡𝑚 ∗ 𝐾𝑡𝑘的数据。在传统的GEMM中，平铺大小𝑁𝑡𝑛和𝑀𝑡𝑚对效率有相等的影响，而𝐾𝑡𝑘则不会影响数据重用，并且设置为对齐内存事务。然而，在基于LUT的GEMM中，激活𝐴[𝑁,𝐾]需要处理以构建查找表，而权重𝑊[𝑀,𝐾]则可以共享相同的预计算查找表。也就是说，较大的𝑀𝑡𝑚平铺在𝑀上可以更好地重用查找表。T-MAC会仔细考虑平铺配置𝑁𝑡𝑛、𝑀𝑡𝑚和𝐾𝑡𝑘，以实现更好的数据重用。</p>
 <p><strong>布局优化</strong><br>除了通过轴重排和平铺来优化片上查找表访问，我们还设计了两种数据布局优化方法，即权重排列和交错，以进一步提高效率。</p>
 <p><strong>权重排列以实现顺序内存访问</strong><br>DRAM要求顺序访问以实现更高的带宽利用率，而在基于平铺的GEMM中，由于输入矩阵的平铺不是顺序存储的，因此会引入随机访问。为了解决这个问题，T-MAC设计了一种权重排列方法，将权重矩阵排列以对齐权重加载与内存事务。在确定GEMM调度后，T-MAC会排列输入矩阵，使得平铺按顺序存储，而不是整个矩阵。具体来说，T-MAC会将平铺中的元素按顺序展开，然后根据平铺访问顺序连接这些展开的平铺。注意，权重矩阵在LLM推理过程中不会被修改，因此这种排列可以在离线进行，不会引入推理中的额外成本。</p>
-<p><strong>权重交错以实现快速解包</strong><br>如第3.1节所述，权重矩阵在内存中是以打包格式存储的，并且在计算时需要解包。然而，由于现代CPU普遍使用的小端存储格式，整数中的字节是倒序存储的。因此，使用整数指令解包权重时需要额外的重排操作来返回正确的解包权重。由于权重矩阵在LLM推理过程中不会被修改，T-MAC可以通过交错存储打包的权重，以消除这种重排操作。图4展示了这种交错的示例，通过交错解包的权重可以直接产生所需的顺序权重。<br><img src="/project/project/2025/02/08/T-MAC/Blog\source_posts\T-MAC\figure4.png" alt="figure 4"></p>
-<h3 id="3-3-减少LUT存储"><a href="#3-3-减少LUT存储" class="headerlink" title="3.3 减少LUT存储"></a>3.3 减少LUT存储</h3><p>在低比特LLM推理的基于LUT的方法中，查找表的大小是一个关键因素，影响存储需求和访问延迟，尤其是在第3.2节中优化片上内存的表查找时。更大的表大小不仅需要更多的内存空间，还会导致较慢的表访问速度。为了解决这一挑战，我们提出了两种优化策略：镜像合并和表量化。如图5所示，镜像合并利用了表值的对称特性，将表的长度减少一半，而表量化则将量化技术应用于表值本身，以减少表的宽度。这两种方法结合起来，可以显著减少查找表的存储占用（最多减少到原始大小的四分之一），而不会影响LLM推理的精度。<br><img src="/project/project/2025/02/08/T-MAC/Blog\source_posts\T-MAC\figure5.png" alt="figure 5"></p>
+<p><strong>权重交错以实现快速解包</strong><br>如第3.1节所述，权重矩阵在内存中是以打包格式存储的，并且在计算时需要解包。然而，由于现代CPU普遍使用的小端存储格式，整数中的字节是倒序存储的。因此，使用整数指令解包权重时需要额外的重排操作来返回正确的解包权重。由于权重矩阵在LLM推理过程中不会被修改，T-MAC可以通过交错存储打包的权重，以消除这种重排操作。图4展示了这种交错的示例，通过交错解包的权重可以直接产生所需的顺序权重。<br><img src="D:\Blog\source_posts\T-MAC\figure4.png" alt="figure 4"></p>
+<h3 id="3-3-减少LUT存储"><a href="#3-3-减少LUT存储" class="headerlink" title="3.3 减少LUT存储"></a>3.3 减少LUT存储</h3><p>在低比特LLM推理的基于LUT的方法中，查找表的大小是一个关键因素，影响存储需求和访问延迟，尤其是在第3.2节中优化片上内存的表查找时。更大的表大小不仅需要更多的内存空间，还会导致较慢的表访问速度。为了解决这一挑战，我们提出了两种优化策略：镜像合并和表量化。如图5所示，镜像合并利用了表值的对称特性，将表的长度减少一半，而表量化则将量化技术应用于表值本身，以减少表的宽度。这两种方法结合起来，可以显著减少查找表的存储占用（最多减少到原始大小的四分之一），而不会影响LLM推理的精度。<br><img src="D:\Blog\source_posts\T-MAC\figure5.png" alt="figure 5"></p>
 <p><strong>镜像合并</strong><br>在LLM推理查找表的上下文中，表值的固有对称性为优化提供了独特的机会。查找表中的每个正值自然地与其负值配对，反映了对零值的镜像对称。利用这种对称性，我们提出的镜像合并技术利用了只需显式存储一半表值的事实。剩余的一半可以通过简单地取负值来快速重构。这种表压缩方法是无损的，完全保留了模型的推理精度。此外，它证明了高度的效率，加速了查找表的预计算，减少了所需的存储，并加快了表访问速度。</p>
 <p><strong>表量化</strong><br>表量化的原理类似于权重和激活的量化，旨在降低表值的精度，以提高计算效率。例如，查找表中的值最初可以用16位浮动点（fp16）表示，然后量化为8位整数（int8），并通过一个缩放因子调整。表量化对模型精度的影响微乎其微。与激活量化不同，激活量化由于需要粗粒度和静态量化以确保快速计算，常常难以保持模型精度；而我们的量化方法采用更细的粒度（例如对于k&#x3D;4的情况量化8个值）和动态量化，以尽量减少精度下降。第5.6节中展示的结果表明，我们的表量化技术对整体模型精度几乎没有影响。就效率而言，表量化显著减少了查找表的存储需求并加快了查找过程。</p>
 <h2 id="4-Implementation"><a href="#4-Implementation" class="headerlink" title="4 Implementation"></a>4 Implementation</h2><h3 id="代码生成（Code-Generation-through-TVM）"><a href="#代码生成（Code-Generation-through-TVM）" class="headerlink" title="代码生成（Code Generation through TVM）"></a><strong>代码生成（Code Generation through TVM）</strong></h3><p>我们采用 <strong>TVM [14] + LLVM [24]</strong> 进行代码生成，这使我们能够针对不同形状的 GEMM（通用矩阵乘法）和不同硬件生成最优代码，并实现常见的优化技术，如 <strong>循环展开（loop unrolling）、向量化（vectorization）和常量折叠（constant folding）</strong>。<br>我们利用 <strong>TVM Tensorize</strong> 将硬件固有指令（intrinsics）嵌入到代码中，同时使用 <strong>AutoTVM [15]</strong> 自动优化代码，以适配不同的硬件目标。</p>
@@ -401,7 +401,7 @@
 </ul>
 </li>
 </ol>
-<p><strong>表 1</strong> 总结了不同 <strong>CPU 架构</strong> 上的 <strong>查找表访问和聚合计算的硬件固有指令（intrinsics）</strong>。<br><img src="/project/project/2025/02/08/T-MAC/Blog\source_posts\T-MAC\table1.png" alt="table 1"></p>
+<p><strong>表 1</strong> 总结了不同 <strong>CPU 架构</strong> 上的 <strong>查找表访问和聚合计算的硬件固有指令（intrinsics）</strong>。<br><img src="D:\Blog\source_posts\T-MAC\table1.png" alt="table 1"></p>
 <hr>
 <h3 id="比特串行线性变换（Bit-serial-Linear-Transformation）"><a href="#比特串行线性变换（Bit-serial-Linear-Transformation）" class="headerlink" title="比特串行线性变换（Bit-serial Linear Transformation）"></a><strong>比特串行线性变换（Bit-serial Linear Transformation）</strong></h3><p>在 <strong>§3.1</strong> 提到的 <strong>分解（decomposition）</strong> 方法中，我们使用原始值 <code>vi</code>（即 <code>0</code> 和 <code>1</code>）。<br>然而，我们可以对这些值 <strong>引入线性变换（linear transformation）</strong>，如下所示：</p>
 <h4 id="线性变换定义："><a href="#线性变换定义：" class="headerlink" title="线性变换定义："></a><strong>线性变换定义：</strong></h4><p>定义线性变换为:<br>$$<br>f(v_i)<br>$$<br>其变换值为：<br>$$<br>f(0) &#x3D; s_0, \quad f(1) &#x3D; s_1<br>$$<br>为了 <strong>加速预计算（precomputation）</strong> 并 <strong>减少量化误差（quantization error）</strong>，需要 <strong>谨慎选择</strong> <code>s0</code> 和 <code>s1</code> 的值：</p>
